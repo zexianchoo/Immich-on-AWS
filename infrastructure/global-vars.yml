@@ -1,2 +1,10 @@
 project_name: "immich"
 region: "ap-southeast-1"
+
+ecr_repositories:
+  [
+    "immich-server",
+    "immich-machine-learning",
+    "redis",
+    "database",
+  ]
