@@ -16,5 +16,5 @@ locals {
 inputs = {
   name        = "${local.project_name}"
   env         = "${local.env}"
-  bucket_name = "s3-immich"
+  bucket_name = "s3_immich"
 }
