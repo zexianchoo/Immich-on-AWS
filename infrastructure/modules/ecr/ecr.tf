@@ -8,7 +8,8 @@ resource "aws_ecr_repository" "this" {
     Env  = each.value.env
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  # TODO: reinstate this
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
