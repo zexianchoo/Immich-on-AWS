@@ -1,0 +1,5 @@
+.vscode/
+**/.env
+.cache/
+**/.DS_Store
+*.pyc
