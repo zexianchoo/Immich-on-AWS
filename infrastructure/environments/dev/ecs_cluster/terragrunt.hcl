@@ -1,5 +1,5 @@
 terraform {
-  source  = "../../../modules//s3"
+  source  = "../../../modules//ecs"
 }
 
 include {
@@ -16,5 +16,4 @@ locals {
 inputs = {
   name        = "${local.project_name}"
   env         = "${local.env}"
-  bucket_name = "s3-bucket"
 }

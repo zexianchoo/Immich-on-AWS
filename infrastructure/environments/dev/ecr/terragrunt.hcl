@@ -1,5 +1,5 @@
 terraform {
-  source  = "../../../modules//s3"
+  source  = "../../../modules/ecr"
 }
 
 include {
@@ -9,12 +9,10 @@ include {
 locals {
   global_vars = yamldecode(file(find_in_parent_folders("global-vars.yml")))
   env_vars    = yamldecode(file(find_in_parent_folders("env-vars.yml")))
-  env        = local.env_vars.env
   project_name = local.global_vars.project_name
+  env        = local.env_vars.env
 }
 
 inputs = {
-  name        = "${local.project_name}"
-  env         = "${local.env}"
-  bucket_name = "s3-bucket"
+    repository_name = "immich-app"
 }
