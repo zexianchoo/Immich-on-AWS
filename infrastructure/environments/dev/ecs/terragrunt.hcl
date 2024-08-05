@@ -111,6 +111,8 @@ inputs = {
           memory    = 1024
           essential = true
           image     = "docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0@sha256:90724186f0a3517cf6914295b5ab410db9ce23190a2d9d0b9dd6463e3fa298f0"
+          
+          # TODO: fix up the port mappings for all of the containers, this should probably follow the docker compose.
           port_mappings = [
             {
               name          = "ecs-sample"
@@ -134,7 +136,7 @@ inputs = {
           cpu       = 512
           memory    = 1024
           essential = true
-          image     = dependency.ecr_immich_ml.repository_url
+          image     = dependency.ecr_immich_ml.outputs.repository_url
           port_mappings = [
             {
               name          = "ecs-sample"
@@ -158,7 +160,7 @@ inputs = {
           cpu       = 512
           memory    = 1024
           essential = true
-          image     = dependency.ecr_immich_app.repository_url
+          image     = dependency.ecr_immich_app.outputs.repository_url
           port_mappings = [
             {
               name          = "ecs-sample"
