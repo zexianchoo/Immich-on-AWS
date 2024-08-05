@@ -18,6 +18,7 @@ dependency "s3_immich" {
 dependency "network" {
   config_path = "../network"
   mock_outputs = {
+    public_subnets = ["subnet-1", "subnet-2"]
   }
   mock_outputs_merge_strategy_with_state = "shallow"
 }
@@ -25,6 +26,7 @@ dependency "network" {
 dependency "ecr_immich_app" {
   config_path = "../ecr_immich_app"
   mock_outputs = {
+    repository_url = ""
   }
   mock_outputs_merge_strategy_with_state = "shallow"
 }
@@ -32,6 +34,7 @@ dependency "ecr_immich_app" {
 dependency "ecr_immich_ml" {
   config_path = "../ecr_immich_ml"
   mock_outputs = {
+    repository_url = ""
   }
   mock_outputs_merge_strategy_with_state = "shallow"
 }
@@ -39,6 +42,7 @@ dependency "ecr_immich_ml" {
 dependency "ecr_redis" {
   config_path = "../ecr_redis"
   mock_outputs = {
+    repository_url = ""
   }
   mock_outputs_merge_strategy_with_state = "shallow"
 }
@@ -46,6 +50,7 @@ dependency "ecr_redis" {
 dependency "ecr_postgres" {
   config_path = "../ecr_postgres"
   mock_outputs = {
+    repository_url = ""
   }
   mock_outputs_merge_strategy_with_state = "shallow"
 }
@@ -95,15 +100,17 @@ inputs = {
           cpu       = 512
           memory    = 1024
           essential = true
-          image     = 
+          image     = "docker.io/redis:6.2-alpine@sha256:e3b17ba9479deec4b7d1eeec1548a253acc5374d68d3b27937fcfe4df8d18c7e"
           memory_reservation = 50
+          readonly_root_filesystem = false
+
         }
 
         postgres = {
           cpu       = 512
           memory    = 1024
           essential = true
-          image     = ""
+          image     = "docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0@sha256:90724186f0a3517cf6914295b5ab410db9ce23190a2d9d0b9dd6463e3fa298f0"
           port_mappings = [
             {
               name          = "ecs-sample"
@@ -116,68 +123,92 @@ inputs = {
           readonly_root_filesystem = false
 
           dependencies = [{
-            containerName = "fluent-bit"
+            containerName = "redis"
             condition     = "START"
           }]
 
-          enable_cloudwatch_logging = false
-          log_configuration = {
-            logDriver = "awsfirelens"
-            options = {
-              Name                    = "firehose"
-              region                  = "eu-west-1"
-              delivery_stream         = "my-stream"
-              log-driver-buffer-limit = "2097152"
-            }
-          }
           memory_reservation = 100
         }
+
+        immich_ml = {
+          cpu       = 512
+          memory    = 1024
+          essential = true
+          image     = dependency.ecr_immich_ml.repository_url
+          port_mappings = [
+            {
+              name          = "ecs-sample"
+              containerPort = 80
+              protocol      = "tcp"
+            }
+          ]
+
+          # Example image used requires access to write to root filesystem
+          readonly_root_filesystem = false
+
+          dependencies = [{
+            containerName = "postgres"
+            condition     = "START"
+          }]
+
+          memory_reservation = 100
+        }
+
+        immich_app = {
+          cpu       = 512
+          memory    = 1024
+          essential = true
+          image     = dependency.ecr_immich_app.repository_url
+          port_mappings = [
+            {
+              name          = "ecs-sample"
+              containerPort = 80
+              protocol      = "tcp"
+            }
+          ]
+
+          # Example image used requires access to write to root filesystem
+          readonly_root_filesystem = false
+
+          dependencies = [{
+            containerName = "postgres"
+            condition     = "START"
+          }]
+
+          memory_reservation = 100
+        }
+
+
       }
 
-      service_connect_configuration = {
-        namespace = "example"
-        service = {
-          client_alias = {
-            port     = 80
-            dns_name = "ecs-sample"
-          }
-          port_name      = "ecs-sample"
-          discovery_name = "ecs-sample"
-        }
-      }
+      # load_balancer = {
+      #   service = {
+      #     target_group_arn = "arn:aws:elasticloadbalancing:eu-west-1:1234567890:targetgroup/bluegreentarget1/209a844cd01825a4"
+      #     container_name   = "ecs-sample"
+      #     container_port   = 80
+      #   }
+      # }
 
-      load_balancer = {
-        service = {
-          target_group_arn = "arn:aws:elasticloadbalancing:eu-west-1:1234567890:targetgroup/bluegreentarget1/209a844cd01825a4"
-          container_name   = "ecs-sample"
-          container_port   = 80
-        }
-      }
+      subnet_ids = dependency.network.outputs.public_subnets
 
-      subnet_ids = ["subnet-abcde012", "subnet-bcde012a", "subnet-fghi345a"]
-      security_group_rules = {
-        alb_ingress_3000 = {
-          type                     = "ingress"
-          from_port                = 80
-          to_port                  = 80
-          protocol                 = "tcp"
-          description              = "Service port"
-          source_security_group_id = "sg-12345678"
-        }
-        egress_all = {
-          type        = "egress"
-          from_port   = 0
-          to_port     = 0
-          protocol    = "-1"
-          cidr_blocks = ["0.0.0.0/0"]
-        }
-      }
+      # security_group_rules = {
+      #   alb_ingress_3000 = {
+      #     type                     = "ingress"
+      #     from_port                = 80
+      #     to_port                  = 80
+      #     protocol                 = "tcp"
+      #     description              = "Service port"
+      #     source_security_group_id = "sg-12345678"
+      #   }
+      #   egress_all = {
+      #     type        = "egress"
+      #     from_port   = 0
+      #     to_port     = 0
+      #     protocol    = "-1"
+      #     cidr_blocks = ["0.0.0.0/0"]
+      #   }
+      # }
     }
-  }
-
-  tags = {
-    Environment = "Development"
-    Project     = "Example"
   }
 
 }
