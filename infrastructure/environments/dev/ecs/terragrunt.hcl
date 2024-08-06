@@ -39,21 +39,21 @@ dependency "ecr_immich_ml" {
   mock_outputs_merge_strategy_with_state = "shallow"
 }
 
-dependency "ecr_redis" {
-  config_path = "../ecr_redis"
-  mock_outputs = {
-    repository_url = ""
-  }
-  mock_outputs_merge_strategy_with_state = "shallow"
-}
+# dependency "ecr_redis" {
+#   config_path = "../ecr_redis"
+#   mock_outputs = {
+#     repository_url = ""
+#   }
+#   mock_outputs_merge_strategy_with_state = "shallow"
+# }
 
-dependency "ecr_postgres" {
-  config_path = "../ecr_postgres"
-  mock_outputs = {
-    repository_url = ""
-  }
-  mock_outputs_merge_strategy_with_state = "shallow"
-}
+# dependency "ecr_postgres" {
+#   config_path = "../ecr_postgres"
+#   mock_outputs = {
+#     repository_url = ""
+#   }
+#   mock_outputs_merge_strategy_with_state = "shallow"
+# }
 
 locals {
   global_vars = yamldecode(file(find_in_parent_folders("global-vars.yml")))
@@ -70,7 +70,7 @@ inputs = {
     execute_command_configuration = {
       logging = "OVERRIDE"
       log_configuration = {
-        cloud_watch_log_group_name = "/aws/ecs/aws-ec2"
+        cloud_watch_log_group_name = "/aws/ecs/immich"
       }
     }
   }
@@ -97,8 +97,8 @@ inputs = {
       container_definitions = {
 
         redis = {
-          cpu       = 512
-          memory    = 1024
+          cpu       = 256
+          memory    = 512
           essential = true
           image     = "docker.io/redis:6.2-alpine@sha256:e3b17ba9479deec4b7d1eeec1548a253acc5374d68d3b27937fcfe4df8d18c7e"
           memory_reservation = 50
@@ -107,20 +107,11 @@ inputs = {
         }
 
         postgres = {
-          cpu       = 512
-          memory    = 1024
+          cpu       = 256
+          memory    = 512
           essential = true
           image     = "docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0@sha256:90724186f0a3517cf6914295b5ab410db9ce23190a2d9d0b9dd6463e3fa298f0"
           
-          # TODO: fix up the port mappings for all of the containers, this should probably follow the docker compose.
-          port_mappings = [
-            {
-              name          = "ecs-sample"
-              containerPort = 80
-              protocol      = "tcp"
-            }
-          ]
-
           # Example image used requires access to write to root filesystem
           readonly_root_filesystem = false
 
@@ -128,57 +119,82 @@ inputs = {
             containerName = "redis"
             condition     = "START"
           }]
-
-          memory_reservation = 100
-        }
-
-        immich_ml = {
-          cpu       = 512
-          memory    = 1024
-          essential = true
-          image     = dependency.ecr_immich_ml.outputs.repository_url
-          port_mappings = [
+          environment = [
+            { 
+              name = "DB_DATA_LOCATION",
+              value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+            },
             {
-              name          = "ecs-sample"
-              containerPort = 80
-              protocol      = "tcp"
-            }
-          ]
-
-          # Example image used requires access to write to root filesystem
-          readonly_root_filesystem = false
-
-          dependencies = [{
-            containerName = "postgres"
-            condition     = "START"
-          }]
-
-          memory_reservation = 100
-        }
-
-        immich_app = {
-          cpu       = 512
-          memory    = 1024
-          essential = true
-          image     = dependency.ecr_immich_app.outputs.repository_url
-          port_mappings = [
+              name = "DB_USERNAME",
+              value = "${local.global_vars.DB_USERNAME}"
+            },
             {
-              name          = "ecs-sample"
-              containerPort = 80
-              protocol      = "tcp"
-            }
+              name = "DB_DATABASE_NAME",
+              value = "${local.global_vars.DB_DATABASE_NAME}"
+            },
+            {
+              name = "DB_PASSWORD",
+              value = "${local.global_vars.DB_PASSWORD}"
+            },
           ]
-
-          # Example image used requires access to write to root filesystem
-          readonly_root_filesystem = false
-
-          dependencies = [{
-            containerName = "postgres"
-            condition     = "START"
-          }]
-
           memory_reservation = 100
         }
+
+        # immich_ml = {
+        #   cpu       = 256
+        #   memory    = 512
+        #   essential = true
+        #   image     = dependency.ecr_immich_ml.outputs.repository_url
+
+        #   # Example image used requires access to write to root filesystem
+        #   readonly_root_filesystem = false
+
+        #   dependencies = [
+        #     {
+        #       containerName = "postgres"
+        #       condition     = "START"
+        #     },
+        #     {
+        #       containerName = "redis"
+        #       condition     = "START"
+        #     }
+        #   ]
+
+        #   memory_reservation = 100
+        # }
+
+        # immich_app = {
+        #   cpu       = 256
+        #   memory    = 512
+        #   essential = true
+        #   image     = dependency.ecr_immich_app.outputs.repository_url
+        #   # port_mappings = [
+        #   #   {
+        #   #     name          = "ecs-sample"
+        #   #     containerPort = 3001
+        #   #     hostPort      = 2283
+        #   #     protocol      = "tcp"
+        #   #   }
+        #   # ]
+        #   environment = [{
+        #     name = "UPLOAD_LOCATION",
+        #     value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+        #   }]
+        #   # Example image used requires access to write to root filesystem
+        #   readonly_root_filesystem = false
+
+        #   dependencies = [
+        #     {
+        #       containerName = "postgres"
+        #       condition     = "START"
+        #     },
+        #     {
+        #       containerName = "redis"
+        #       condition     = "START"
+        #     }
+        #   ]
+        #   memory_reservation = 100
+        # }
 
 
       }

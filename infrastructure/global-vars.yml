@@ -8,3 +8,10 @@ ecr_repositories:
     "redis",
     "database",
   ]
+
+# DB_DATA_LOCATION: "./postgres"
+# UPLOAD_LOCATION: "./library"
+IMMICH_VERSION: "release"
+DB_PASSWORD: "randompassword"
+DB_USERNAME: "postgres"
+DB_DATABASE_NAME: "immich"

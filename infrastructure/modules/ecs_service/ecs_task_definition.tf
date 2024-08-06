@@ -2,7 +2,7 @@
 
 resource "aws_ecs_task_definition" "this" {
   family                   = "${var.name}-${var.env}-ecs-task-def-${var.task_name}"
-  network_mode             = "awsvpc" #TODO: change to not a vpc.
+  network_mode             = "awsvpc" 
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.cpu
   memory                   = var.memory
