@@ -39,21 +39,12 @@ dependency "ecr_immich_ml" {
   mock_outputs_merge_strategy_with_state = "shallow"
 }
 
-# dependency "ecr_redis" {
-#   config_path = "../ecr_redis"
-#   mock_outputs = {
-#     repository_url = ""
-#   }
-#   mock_outputs_merge_strategy_with_state = "shallow"
-# }
-
-# dependency "ecr_postgres" {
-#   config_path = "../ecr_postgres"
-#   mock_outputs = {
-#     repository_url = ""
-#   }
-#   mock_outputs_merge_strategy_with_state = "shallow"
-# }
+dependency "efs" {
+  config_path = "../efs"
+  mock_outputs = {
+  }
+  mock_outputs_merge_strategy_with_state = "shallow"
+}
 
 locals {
   global_vars = yamldecode(file(find_in_parent_folders("global-vars.yml")))
@@ -66,6 +57,9 @@ locals {
 inputs = {
   cluster_name = "${local.project_name}-ecs-${local.env}"
 
+
+  # create_task_exec_iam_role = true
+  cloudwatch_log_group_name = "${local.project_name}-ecs-log-group-${local.env}"
   cluster_configuration = {
     execute_command_configuration = {
       logging = "OVERRIDE"
@@ -93,6 +87,9 @@ inputs = {
       cpu    = 1024
       memory = 4096
 
+      enable_execute_command = true
+      assign_public_ip = true
+
       # Container definition(s)
       container_definitions = {
 
@@ -100,45 +97,70 @@ inputs = {
           cpu       = 256
           memory    = 512
           essential = true
-          image     = "docker.io/redis:6.2-alpine@sha256:e3b17ba9479deec4b7d1eeec1548a253acc5374d68d3b27937fcfe4df8d18c7e"
-          memory_reservation = 50
+          image     = "public.ecr.aws/docker/library/redis:alpine"
           readonly_root_filesystem = false
 
+          health_check = {
+            command     = ["CMD-SHELL", "redis-cli ping || exit 1"]
+            interval    = 5
+            timeout     = 5
+            retries     = 3
+            startPeriod = 2
+          }
+
+          mountPoints = [
+          {
+            sourceVolume  = "efs-storage"
+            containerPath = "/data"
+          }
+        ]
         }
 
-        postgres = {
-          cpu       = 256
-          memory    = 512
-          essential = true
-          image     = "docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0@sha256:90724186f0a3517cf6914295b5ab410db9ce23190a2d9d0b9dd6463e3fa298f0"
+        # postgres = {
+        #   cpu       = 256
+        #   memory    = 512
+        #   essential = true
+        #   image     = "public.ecr.aws/c2m6n8k8/pgvector:latest"
           
-          # Example image used requires access to write to root filesystem
-          readonly_root_filesystem = false
+        #   # Example image used requires access to write to root filesystem
+        #   readonly_root_filesystem = false
 
-          dependencies = [{
-            containerName = "redis"
-            condition     = "START"
-          }]
-          environment = [
-            { 
-              name = "DB_DATA_LOCATION",
-              value = "${dependency.s3_immich.outputs.s3_bucket_id}"
-            },
-            {
-              name = "DB_USERNAME",
-              value = "${local.global_vars.DB_USERNAME}"
-            },
-            {
-              name = "DB_DATABASE_NAME",
-              value = "${local.global_vars.DB_DATABASE_NAME}"
-            },
-            {
-              name = "DB_PASSWORD",
-              value = "${local.global_vars.DB_PASSWORD}"
-            },
-          ]
-          memory_reservation = 100
-        }
+        #   dependencies = [{
+        #     containerName = "redis"
+        #     condition     = "START"
+        #   }]
+
+        #   environment = [
+        #     { 
+        #       name = "DB_DATA_LOCATION",
+        #       value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+        #     },
+        #     {
+        #       name = "DB_USERNAME",
+        #       value = "${local.global_vars.DB_USERNAME}"
+        #     },
+        #     {
+        #       name = "DB_DATABASE_NAME",
+        #       value = "${local.global_vars.DB_DATABASE_NAME}"
+        #     },
+        #     {
+        #       name = "DB_PASSWORD",
+        #       value = "${local.global_vars.DB_PASSWORD}"
+        #     },
+        #   ]
+
+
+        #   health_check = {
+        #     command     = [
+        #                     "CMD-SHELL", 
+        #                     "pg_isready --dbname=\"${local.global_vars.DB_DATABASE_NAME}\" --username='${local.global_vars.DB_USERNAME}' || exit 1; Chksum=\"$$(psql --dbname='${local.global_vars.DB_DATABASE_NAME}' --username='${local.global_vars.DB_USERNAME}' --tuples-only --no-align --command='SELECT COALESCE(SUM(checksum_failures), 0) FROM pg_stat_database')\"; echo \"checksum failure count is $$Chksum\"; [ \"$$Chksum\" = '0' ] || exit 1"
+        #                   ]
+        #     interval    = 5
+        #     timeout     = 5
+        #     retries     = 3
+        #     startPeriod = 5
+        #   }
+        # }
 
         # immich_ml = {
         #   cpu       = 256
@@ -208,24 +230,25 @@ inputs = {
       # }
 
       subnet_ids = dependency.network.outputs.public_subnets
+      security_group_rules = {
+        egress_all = {
+          type        = "egress"
+          from_port   = 0
+          to_port     = 0
+          protocol    = "-1"
+          cidr_blocks = ["0.0.0.0/0"]
+        }
+      }
 
-      # security_group_rules = {
-      #   alb_ingress_3000 = {
-      #     type                     = "ingress"
-      #     from_port                = 80
-      #     to_port                  = 80
-      #     protocol                 = "tcp"
-      #     description              = "Service port"
-      #     source_security_group_id = "sg-12345678"
-      #   }
-      #   egress_all = {
-      #     type        = "egress"
-      #     from_port   = 0
-      #     to_port     = 0
-      #     protocol    = "-1"
-      #     cidr_blocks = ["0.0.0.0/0"]
-      #   }
-      # }
+      volumes = [
+        {
+          name = "efs-storage"
+          efs_volume_configuration = {
+            file_system_id = "${dependency.efs.outputs.id}"
+            root_directory = "/"
+          }
+        }
+      ]
     }
   }
 
