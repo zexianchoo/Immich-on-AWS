@@ -105,62 +105,76 @@ inputs = {
             interval    = 5
             timeout     = 5
             retries     = 3
-            startPeriod = 2
+            startPeriod = 10
           }
 
           mountPoints = [
-          {
-            sourceVolume  = "efs-storage"
-            containerPath = "/data"
-          }
-        ]
+            {
+              sourceVolume  = "efs-storage-redis"
+              containerPath = "/data"
+            }
+          ]
         }
 
-        # postgres = {
-        #   cpu       = 256
-        #   memory    = 512
-        #   essential = true
-        #   image     = "public.ecr.aws/c2m6n8k8/pgvector:latest"
+        postgres = {
+          cpu       = 256
+          memory    = 512
+          essential = true
+          image     = "docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0@sha256:90724186f0a3517cf6914295b5ab410db9ce23190a2d9d0b9dd6463e3fa298f0"
           
-        #   # Example image used requires access to write to root filesystem
-        #   readonly_root_filesystem = false
+          # Example image used requires access to write to root filesystem
+          readonly_root_filesystem = false
 
-        #   dependencies = [{
-        #     containerName = "redis"
-        #     condition     = "START"
-        #   }]
+          dependencies = [{
+            containerName = "redis"
+            condition     = "HEALTHY"
+          }]
 
-        #   environment = [
-        #     { 
-        #       name = "DB_DATA_LOCATION",
-        #       value = "${dependency.s3_immich.outputs.s3_bucket_id}"
-        #     },
-        #     {
-        #       name = "DB_USERNAME",
-        #       value = "${local.global_vars.DB_USERNAME}"
-        #     },
-        #     {
-        #       name = "DB_DATABASE_NAME",
-        #       value = "${local.global_vars.DB_DATABASE_NAME}"
-        #     },
-        #     {
-        #       name = "DB_PASSWORD",
-        #       value = "${local.global_vars.DB_PASSWORD}"
-        #     },
-        #   ]
+          environment = [
+            { 
+              name = "DB_DATA_LOCATION",
+              value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+            },
+            {
+              name = "POSTGRES_USER",
+              value = "${local.global_vars.DB_USERNAME}"
+            },
+            {
+              name = "POSTGRES_DB",
+              value = "${local.global_vars.DB_DATABASE_NAME}"
+            },
+            {
+              name = "POSTGRES_PASSWORD",
+              value = "${local.global_vars.DB_PASSWORD}"
+            },
+            {
+              name = "PGUSER",
+              value = "${local.global_vars.DB_USERNAME}"
+            },
+            {
+              name = "POSTGRES_INITDB_ARGS",
+              value = "--data-checksums"
+            }
+          ]
 
+          mountPoints = [
+            {
+              sourceVolume  = "efs-storage-postgres"
+              containerPath = "/var/lib/postgresql/data"
+            }
+          ]
 
-        #   health_check = {
-        #     command     = [
-        #                     "CMD-SHELL", 
-        #                     "pg_isready --dbname=\"${local.global_vars.DB_DATABASE_NAME}\" --username='${local.global_vars.DB_USERNAME}' || exit 1; Chksum=\"$$(psql --dbname='${local.global_vars.DB_DATABASE_NAME}' --username='${local.global_vars.DB_USERNAME}' --tuples-only --no-align --command='SELECT COALESCE(SUM(checksum_failures), 0) FROM pg_stat_database')\"; echo \"checksum failure count is $$Chksum\"; [ \"$$Chksum\" = '0' ] || exit 1"
-        #                   ]
-        #     interval    = 5
-        #     timeout     = 5
-        #     retries     = 3
-        #     startPeriod = 5
-        #   }
-        # }
+          health_check = {
+            command     = [
+                            "CMD-SHELL", 
+                            "pg_isready --dbname='${local.global_vars.DB_DATABASE_NAME}' --username='${local.global_vars.DB_USERNAME}'"
+                          ]
+            interval    = 5
+            timeout     = 5
+            retries     = 3
+            startPeriod = 10
+          }
+        }
 
         # immich_ml = {
         #   cpu       = 256
@@ -242,10 +256,17 @@ inputs = {
 
       volumes = [
         {
-          name = "efs-storage"
+          name = "efs-storage-redis"
           efs_volume_configuration = {
             file_system_id = "${dependency.efs.outputs.id}"
-            root_directory = "/"
+            root_directory = "/redis"
+          }
+        },
+        {
+          name = "efs-storage-postgres"
+          efs_volume_configuration = {
+            file_system_id = "${dependency.efs.outputs.id}"
+            root_directory = "/postgres"
           }
         }
       ]
