@@ -176,63 +176,83 @@ inputs = {
           }
         }
 
-        # immich_ml = {
-        #   cpu       = 256
-        #   memory    = 512
-        #   essential = true
-        #   image     = dependency.ecr_immich_ml.outputs.repository_url
+        immich_ml = {
+          cpu       = 256
+          memory    = 512
+          essential = true
+          image     = dependency.ecr_immich_ml.outputs.repository_url
 
-        #   # Example image used requires access to write to root filesystem
-        #   readonly_root_filesystem = false
+          # Example image used requires access to write to root filesystem
+          readonly_root_filesystem = false
 
-        #   dependencies = [
-        #     {
-        #       containerName = "postgres"
-        #       condition     = "START"
-        #     },
-        #     {
-        #       containerName = "redis"
-        #       condition     = "START"
-        #     }
-        #   ]
+          dependencies = [
+            {
+              containerName = "postgres"
+              condition     = "HEALTHY"
+            },
+            {
+              containerName = "redis"
+              condition     = "HEALTHY"
+            }
+          ]
 
-        #   memory_reservation = 100
-        # }
+          memory_reservation = 100
+        }
 
-        # immich_app = {
-        #   cpu       = 256
-        #   memory    = 512
-        #   essential = true
-        #   image     = dependency.ecr_immich_app.outputs.repository_url
-        #   # port_mappings = [
-        #   #   {
-        #   #     name          = "ecs-sample"
-        #   #     containerPort = 3001
-        #   #     hostPort      = 2283
-        #   #     protocol      = "tcp"
-        #   #   }
-        #   # ]
-        #   environment = [{
-        #     name = "UPLOAD_LOCATION",
-        #     value = "${dependency.s3_immich.outputs.s3_bucket_id}"
-        #   }]
-        #   # Example image used requires access to write to root filesystem
-        #   readonly_root_filesystem = false
+        immich_app = {
+          cpu       = 256
+          memory    = 512
+          essential = true
+          image     = dependency.ecr_immich_app.outputs.repository_url
+          # port_mappings = [
+          #   {
+          #     name          = "ecs-sample"
+          #     containerPort = 3001
+          #     hostPort      = 2283
+          #     protocol      = "tcp"
+          #   }
+          # ]
+          environment = [
+            { 
+              name = "IMMICH_VERSION",
+              value = "${local.global_vars.IMMICH_VERSION}"
+            },
+            {
+              name = "DB_USERNAME",
+              value = "${local.global_vars.DB_USERNAME}"
+            },
+            {
+              name = "DB_DATABASE_NAME",
+              value = "${local.global_vars.DB_DATABASE_NAME}"
+            },
+            {
+              name = "DB_PASSWORD",
+              value = "${local.global_vars.DB_PASSWORD}"
+            },
+            {
+              name = "DB_DATA_LOCATION",
+              value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+            },
+            {
+            name = "UPLOAD_LOCATION",
+            value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+            }
+          ]
+          # Example image used requires access to write to root filesystem
+          readonly_root_filesystem = false
 
-        #   dependencies = [
-        #     {
-        #       containerName = "postgres"
-        #       condition     = "START"
-        #     },
-        #     {
-        #       containerName = "redis"
-        #       condition     = "START"
-        #     }
-        #   ]
-        #   memory_reservation = 100
-        # }
-
-
+          dependencies = [
+            {
+              containerName = "postgres"
+              condition     = "HEALTHY"
+            },
+            {
+              containerName = "redis"
+              condition     = "HEALTHY"
+            }
+          ]
+          memory_reservation = 100
+        }
       }
 
       # load_balancer = {
