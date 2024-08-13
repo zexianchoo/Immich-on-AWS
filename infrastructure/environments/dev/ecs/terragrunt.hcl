@@ -82,10 +82,12 @@ inputs = {
     }
   }
 
+  desired_count = 0
+
   services = {
     immich = {
-      cpu    = 1024
-      memory = 4096
+      cpu    = 2048
+      memory = 6144
 
       enable_execute_command = true
       assign_public_ip = true
@@ -180,7 +182,7 @@ inputs = {
           cpu       = 256
           memory    = 512
           essential = true
-          image     = dependency.ecr_immich_ml.outputs.repository_url
+          image     = "${dependency.ecr_immich_ml.outputs.repository_url}:latest"
 
           # Example image used requires access to write to root filesystem
           readonly_root_filesystem = false
@@ -195,23 +197,34 @@ inputs = {
               condition     = "HEALTHY"
             }
           ]
-
+          mountPoints = [
+            {
+              sourceVolume  = "ebs-storage-ml"
+              containerPath = "/cache"
+            }
+          ]
           memory_reservation = 100
         }
 
         immich_app = {
           cpu       = 256
           memory    = 512
-          essential = true
-          image     = dependency.ecr_immich_app.outputs.repository_url
-          # port_mappings = [
-          #   {
-          #     name          = "ecs-sample"
-          #     containerPort = 3001
-          #     hostPort      = 2283
-          #     protocol      = "tcp"
-          #   }
-          # ]
+          essential = false
+          image     = "${dependency.ecr_immich_app.outputs.repository_url}:latest" 
+          port_mappings = [
+            {
+              name          = "immich_app_port1"
+              containerPort = 2283
+              hostPort      = 2283
+              protocol      = "tcp"
+            },
+            {
+              name          = "immich_app_port2"
+              containerPort = 3001
+              hostPort      = 3001
+              protocol      = "tcp"
+            }
+          ]
           environment = [
             { 
               name = "IMMICH_VERSION",
@@ -234,8 +247,12 @@ inputs = {
               value = "${dependency.s3_immich.outputs.s3_bucket_id}"
             },
             {
-            name = "UPLOAD_LOCATION",
-            value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+              name = "UPLOAD_LOCATION",
+              value = "${dependency.s3_immich.outputs.s3_bucket_id}"
+            },
+              {
+              name = "TINI_SUBREAPER",
+              value = "1"
             }
           ]
           # Example image used requires access to write to root filesystem
@@ -288,7 +305,18 @@ inputs = {
             file_system_id = "${dependency.efs.outputs.id}"
             root_directory = "/postgres"
           }
+        },
+        {
+          name = "ebs-storage-ml"
+          ebs_volume_configuration = {
+            volume_type           = "gp2"               
+            volume_size           = 100                  
+            delete_on_termination = true                 
+            iops                  = 1000                 
+            encrypted             = false
+          }
         }
+
       ]
     }
   }

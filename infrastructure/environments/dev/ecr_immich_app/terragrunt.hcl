@@ -18,7 +18,7 @@ inputs={
 
   repository_name = "${local.project_name}-ecr-immich-app-${local.env}"
   repository_type = "private"
-
+  force_delete = true
   # TODO: create the terraform service arn
   repository_read_write_access_arns = ["*"]
   repository_lifecycle_policy = jsonencode({
