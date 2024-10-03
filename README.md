@@ -5,9 +5,11 @@ Utilizes Terragrunt, Terraform, and Docker
 Saves costs by using Fargate!
 
 # Setup:
-`cd app`
-## 1. Update .env by following `.env.example`:
+
+## 1. Update app/.env by following `.env.example`:
+
 `acc_num` = your AWS account number
+
 `DB_PASSWORD` = the password you wish to use to access the postgreSQL database
 
 Then, run:
@@ -31,7 +33,7 @@ export AWS_DEFAULT_REGION=us-east-1
 # To Run:
 ```
 cd infrastructure/environments/dev
-terragrunt run-all apply -y
+terragrunt run-all apply
 ```
 
 # To Access:
@@ -44,5 +46,5 @@ Note down the assigned ip and connect to <assigned_ip:2283>
 # To destroy infrastructure:
 ```
 cd infrastructure/environments/dev
-terragrunt run-all destroy -y
+terragrunt run-all destroy
 ```
