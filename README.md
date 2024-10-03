@@ -1,6 +1,6 @@
 # Immich-on-AWS
 
-An AWS solution to deploy immich, the open source image hosting solution (immich.app) on AWS, since it is currently only supporting local hosting over local networks.
+An AWS solution to deploy immich, the open source image hosting solution (https://immich.app, https://github.com/immich-app/immich) on AWS, since it is currently only supporting local hosting over local networks.
 Utilizes Terragrunt, Terraform, and Docker
 Saves costs by using Fargate!
 
